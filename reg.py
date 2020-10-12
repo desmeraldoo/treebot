@@ -238,7 +238,7 @@ class RegClient(discord.Client):
             await self.close()
 
 def init_logging():
-    if not os.isdir('logs'):
+    if not os.path.isdir('logs'):
         os.mkdir('logs')
     
     log = logging.getLogger()
