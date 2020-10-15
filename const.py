@@ -6,6 +6,7 @@ dotenv.load_dotenv()
 
 DEFAULT_CHANNEL = 'moonlight'
 EMOJI_REGEX = r'<a:.+?:\d+>|<:.+?:\d+>'
+# TODO: Make these secrets or parameters
 ENABLED_CHANNELS = [750703990555279443, 750045079909040128]
 IRREDEEMABLE = '度し難い…'
 LOG_FILE_INFO = 'logs/reg-{}.log'
