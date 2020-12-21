@@ -46,7 +46,7 @@ class RegClient(discord.Client):
         try:
             request = requests.head(link)
             code = request.status_code
-            if (code > 199 or code < 400) and code != 301:
+            if (code > 199 or code < 400):
                 logging.info(f'Link resolved successfully [Code {code}]')
                 return True
             else:
@@ -120,12 +120,12 @@ class RegClient(discord.Client):
                 logging.debug('Message is valid')
             else:
                 logging.info(
-                    'Removed message by {} ({}).\n\t{}\n\tOriginal message: [{}]'.format(
-                        message.author.name, message.author.nick, reason, message.content))
+                    'Removed message by {}.\n\t{}\n\tOriginal message: [{}]'.format(
+                        message.author.name, reason, message.content))
                 try:
                     await message.delete()
                 except discord.errors.NotFound:
-                    pass # Message was already deleted
+                    pass # Message was already deleted (likely by a different program instance)
         else:
             logging.debug('Ignoring message -- not in enabled channel.')
     
