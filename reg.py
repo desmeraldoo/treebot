@@ -194,7 +194,7 @@ class RegClient(discord.Client):
             else:
                 self.voice_client = await channel.connect()
         else:
-            logging.warning(f'\{channel}\' is not a voice channel.')
+            logging.warning(f'\'{channel}\' is not a voice channel.')
 
     async def prompt_non_interactive(self):
         confirm = await aioconsole.ainput(
