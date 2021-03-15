@@ -14,7 +14,6 @@ import traceback
 # EXTERNAL LIB
 import aioconsole
 import discord
-import dotenv
 import emoji
 
 # LOCAL LIB

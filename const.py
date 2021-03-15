@@ -1,8 +1,9 @@
 import dotenv
 import os
 
-# CONSTANTS
 dotenv.load_dotenv()
+
+TOKEN = os.getenv('DISCORD_TOKEN')
 
 DEFAULT_CHANNEL = 'moonlight'
 EMOJI_REGEX = r'<a:.+?:\d+>|<:.+?:\d+>'
@@ -15,5 +16,4 @@ LOG_FORMAT_FILE = u'%(asctime)s [%(name)s] [%(levelname)s] %(message)s'
 LOG_FORMAT_STREAM = u'%(asctime)s [%(levelname)s] %(message)s'
 PROMPT = 'Enter command [[c]hange] [[j]oin] [[m]essage] [[n]on-interactive]: '
 REDEEMABLE = '良い。'
-TOKEN = os.getenv('DISCORD_TOKEN')
 URL_REGEX = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
