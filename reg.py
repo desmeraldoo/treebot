@@ -20,6 +20,9 @@ import emoji
 # LOCAL LIB
 from const import *
 
+# TODO: Allow spoilers
+# TODO: Fix bug involving spaces and emojis
+
 class RegClient(discord.Client):
     def __init__(self):
         super().__init__()
@@ -69,16 +72,20 @@ class RegClient(discord.Client):
             logging.info(f'Testing link: {link}')
             if not self.is_link_valid(link):
                 return False, f'{link} is not a valid link!'
-        # Remove all links from the text and tokenize the content to check for emojis.
+        # Remove all links from the text.
         content = re.sub(URL_REGEX, '', content)
-        content = content.split(' ')
         logging.debug(f'Remaining content after removing URLs: {content}')
-        # Remove all tokens that are not Unicode emojis.
+        # Remove all the Unicode emojis (requires text tokenization).
+        content = content.split(' ')
         content = [tok for tok in content if tok not in emoji.UNICODE_EMOJI]
+        content = ' '.join(content)
         logging.debug(f'Remaining content after removing unicode emojis: {content}')
-        # Remove all tokens that are not Discord emojis.
-        content = re.sub(EMOJI_REGEX, '', ' '.join(content))
+        # Remove all the Discord emojis.
+        content = re.sub(EMOJI_REGEX, '', content)
         logging.debug(f'Remaining content after removing Discord emojis: {content}')
+        # Remove all the mentions.
+        content = re.sub(MENTION_REGEX, '', content)
+        logging.debug(f'Remaining content after removing mentions: {content}')
         # Remove all whitespace.
         content = re.sub(r'\s+', '', content)
         # If there is anything left, the message is not valid.

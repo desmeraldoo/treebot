@@ -13,6 +13,7 @@ LOG_FILE_INFO = 'logs/reg-{}.log'
 LOG_FILE_DEBUG = 'logs/reg-debug-{}.log'
 LOG_FORMAT_FILE = u'%(asctime)s [%(name)s] [%(levelname)s] %(message)s'
 LOG_FORMAT_STREAM = u'%(asctime)s [%(levelname)s] %(message)s'
+MENTION_REGEX = r'<@!*&*[0-9]+>'
 PROMPT = 'Enter command [[c]hange] [[j]oin] [[m]essage] [[n]on-interactive]: '
 REDEEMABLE = '良い。'
 TOKEN = os.getenv('DISCORD_TOKEN')
