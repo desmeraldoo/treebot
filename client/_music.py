@@ -9,6 +9,8 @@ import youtube_dl
 # LOCAL LIB
 from ._const import *
 
+import pdb
+
 def link_valid(link):
     try:
         request = requests.head(link)
@@ -20,7 +22,7 @@ def link_valid(link):
             logging.info(f'Link received error [Code {code}]')
             return False
     except Exception:
-        logging.info('Error resolving link!')
+        logging.info(f'Error resolving link: {link}')
         logging.debug('\n', exc_info=True)
         return False
 
@@ -28,25 +30,30 @@ class MusicModule():
     def __init__(self, parent):
         self.parent = parent
         self.ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
+        
+    def search(self, query):
+        info = None
+        if link_valid(query.strip()):
+            info = self.ytdl.extract_info(query, download=False)
+        else:
+            info = self.ytdl.extract_info(f'ytsearch:{query}', download=False)['entries'][0]
+        return info['title'], info['formats'][0]['url']
     
-    async def play(self, ctx, url):
+    async def play(self, ctx, query):
         if not self.parent.is_connected(ctx.author.guild):
             if not ctx.author.voice:
                 await ctx.send('You must be in a voice channel to use this command.')
                 return
             await self.parent.join(ctx.author.voice.channel)
         
-        if not link_valid(url.strip()):
-            await ctx.send('I couldn\'t read that URL.')
-            return
-        
-        # await ctx.defer()
-        filename = await Download.from_url(url, loop=self.parent.loop)
-        stream = discord.FFmpegPCMAudio(executable=FFMPEG_PATH, source=filename)
+        await ctx.defer()
+        title, source = self.search(query)
+        stream = discord.FFmpegPCMAudio(source, **FFMPEG_OPTIONS)
+        # filename = await Download.from_url(url, loop=self.parent.loop)
         
         try:
-            ctx.author.guild.voice_client.play(stream)
-            await ctx.send(f'**Now playing:** {filename}')
+            ctx.author.guild.voice_client.play(stream, after=lambda e: logging.info(f'Finished playing {e}'))
+            await ctx.send(f'**Now playing:** {title}')
         except discord.errors.ClientException:
             # TODO: Add queue
             await ctx.send('Music is already playing. A queue will be implemented soon!')

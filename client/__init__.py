@@ -51,9 +51,7 @@ class TreeClient(discord.Client):
         if hasattr(self, 'voice_client') and self.voice_client.is_connected():
             current_channel = self.voice_client.channel
             if current_channel != channel:
-                # Switch channels
-                await self.calls[channel.guild].disconnect()
-                self.calls[channel.guild] = await channel.connect()
+                await self.calls[channel.guild].move_to(channel)
                 logging.info(f'\nSuccessfully switched from \'{current_channel}\' to \'{channel}\'.')
         else:
             self.calls[channel.guild] = await channel.connect()
