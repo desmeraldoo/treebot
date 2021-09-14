@@ -57,19 +57,8 @@ class InteractivePrompt():
             await channel.send(message)
 
     async def prompt_toggle_join(self, channel):
-        # Join a voice channel or leave it if already joined.
         if type(channel) == discord.channel.VoiceChannel:
-            if self.parent.voice_client and self.parent.voice_client.is_connected():
-                current_channel = self.parent.voice_client.channel
-                await self.parent.voice_client.disconnect()
-                logging.info(f'\nSuccessfully disconnected from \'{channel}\'.')
-                if current_channel != channel:
-                    # Switch channels
-                    self.parent.voice_client = await channel.connect()
-                    logging.info(f'Successfully connected to \'{current_channel}\'.')
-            else:
-                self.parent.voice_client = await channel.connect()
-                logging.info(f'Successfully connected to \'{channel}\'.')
+            await self.parent.join(channel)
         else:
             logging.warning(f'\'{channel}\' is not a voice channel.')
 
@@ -110,6 +99,7 @@ class InteractivePrompt():
                 await asyncio.sleep(1)
                 
         except KeyboardInterrupt:
-            if self.parent.voice_client and self.parent.voice_client.is_connected():
-                await self.parent.voice_client.disconnect()
+            for guild in self.parent.guilds:
+                if self.parent.is_connected(guild):
+                    await self.parent.close_connection(guild)
             await self.parent.close()

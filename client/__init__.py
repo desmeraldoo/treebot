@@ -10,23 +10,28 @@ import emoji
 
 # LOCAL LIB
 from ._const import *
+from ._music import MusicModule
 from ._prompt import InteractivePrompt
+
+import pdb
 
 class TreeClient(discord.Client):
     def __init__(self):
         super().__init__()
         self.initialized = False
-        self.voice_client = None
-        self.prompt = InteractivePrompt(self).prompt
+        self.calls = dict()
+        # TODO: Add way to switch between guilds
+        # self.prompt = InteractivePrompt(self).prompt
+        self.music = MusicModule(self)
 
     def assemble_channel_dict(self):
-        self.channel_dict = {}
+        self.channel_dict = dict()
         for channel in self.get_all_channels():
             if type(channel) in [discord.channel.TextChannel, discord.channel.VoiceChannel]:
                 self.channel_dict[channel.name] = channel.id
 
     def assemble_emoji_dict(self):
-        self.emoji_dict = {}
+        self.emoji_dict = dict()
         for emoji in self.emojis:
             key = f':{emoji.name}:'
             if emoji.animated:
@@ -34,21 +39,25 @@ class TreeClient(discord.Client):
             else:
                 value = f'<:{emoji.name}:{emoji.id}>'
             self.emoji_dict[key] = value
-
-    def is_link_valid(self, link):
-        try:
-            request = requests.head(link)
-            code = request.status_code
-            if (code > 199 or code < 400):
-                logging.info(f'Link resolved successfully [Code {code}]')
-                return True
-            else:
-                logging.info(f'Link received error [Code {code}]')
-                return False
-        except Exception:
-            logging.info('Error resolving link!')
-            logging.debug('\n', exc_info=True)
-            return False
+    
+    def is_connected(self, guild):
+        return guild in self.calls.keys() and self.calls[guild].is_connected()
+    
+    async def close_connection(self, guild):
+        await self.calls[guild].disconnect()
+    
+    async def join(self, channel):
+        # Join a voice channel or leave it if already joined.
+        if hasattr(self, 'voice_client') and self.voice_client.is_connected():
+            current_channel = self.voice_client.channel
+            if current_channel != channel:
+                # Switch channels
+                await self.calls[channel.guild].disconnect()
+                self.calls[channel.guild] = await channel.connect()
+                logging.info(f'\nSuccessfully switched from \'{current_channel}\' to \'{channel}\'.')
+        else:
+            self.calls[channel.guild] = await channel.connect()
+            logging.info(f'Successfully connected to \'{channel}\'.')
 
     async def on_ready(self):
         for guild in self.guilds:
@@ -58,8 +67,8 @@ class TreeClient(discord.Client):
             # Assemble dictionary server assets
             self.assemble_channel_dict()
             self.assemble_emoji_dict()
-            # Init command prompt functionality
-            self.loop.create_task(self.prompt())
+            # Init command prompt functionality (not currently active)
+            # self.loop.create_task(self.prompt())
             
             self.initialized = True
     
