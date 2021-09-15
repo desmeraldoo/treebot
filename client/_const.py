@@ -1,9 +1,16 @@
 DEFAULT_CHANNEL = 'moonlight'
+DOWNLOAD_BY_DEFAULT = True
 EMOJI_REGEX = r'<a:.+?:\d+>|<:.+?:\d+>'
+FFMPEG_STREAM_OPTIONS = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+FFMPEG_BASE_OPTIONS = {
+    'executable': 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'
+}
 MENTION_REGEX = r'<@!*&*[0-9]+>'
 PROMPT = 'Enter command [[c]hange] [[j]oin] [[m]essage] [[n]on-interactive]: '
+QUEUE_MAXSIZE = 2
+REQUIRE_BOT_IN_CALL = 'RequireBotInCall'
+REQUIRE_USER_IN_CALL = 'RequireUserInCall'
 URL_REGEX = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
-
 YTDL_OPTIONS = {
     'default_search': 'auto',
     'format': 'bestaudio/best',
@@ -17,9 +24,4 @@ YTDL_OPTIONS = {
     'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
-#     ,
-FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'executable': 'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe'
-}
 

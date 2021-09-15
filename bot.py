@@ -12,8 +12,11 @@ from client import TreeClient
 from commands import register_commands
 
 # TODO: Add a way for prompt to switch between guilds
-# TODO: Add a way to toggle downloading/streaming of songs
-# TODO: Add song playing queue
+# TODO: Add a way to examine the queue
+# TODO: Add a way to skip forward in the queue
+# TODO: Add a way to play from file upload
+# FIXME: Pausing and then playing allows someone to jump forward in the queue
+# FIXME: Fix using the command without properly specifying arguments. Maybe add a resume command?
 
 if __name__ == '__main__':
     if os.name == 'nt':

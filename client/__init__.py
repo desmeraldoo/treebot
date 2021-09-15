@@ -20,7 +20,7 @@ class TreeClient(discord.Client):
         super().__init__()
         self.initialized = False
         self.calls = dict()
-        # TODO: Add way to switch between guilds
+        # TODO: Add way to switch between guilds in interactive prompt
         # self.prompt = InteractivePrompt(self).prompt
         self.music = MusicModule(self)
 
@@ -49,13 +49,18 @@ class TreeClient(discord.Client):
     async def join(self, channel):
         # Join a voice channel or leave it if already joined.
         if hasattr(self, 'voice_client') and self.voice_client.is_connected():
-            current_channel = self.voice_client.channel
+            current_channel = self.calls[channel.guild].voice_client.channel
             if current_channel != channel:
                 await self.calls[channel.guild].move_to(channel)
                 logging.info(f'\nSuccessfully switched from \'{current_channel}\' to \'{channel}\'.')
+                return True
+            else:
+                logging.warning('Tried to re-join the same channel!')
+                return False
         else:
             self.calls[channel.guild] = await channel.connect()
             logging.info(f'Successfully connected to \'{channel}\'.')
+            return True
 
     async def on_ready(self):
         for guild in self.guilds:
