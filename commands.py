@@ -17,23 +17,23 @@ def register_commands(client):
     
     @slash.slash(
         name='play', 
-        description=f'Play a song, or resume playing if paused',
+        description='Play a song. If already playing or paused, adds the song to the queue',
         guild_ids=command_guilds,
         options=[
             manage_commands.create_option(
                 name='song',
                 description=f'The name or url of the song you would like to play',
                 option_type=3,
-                required=False
+                required=True
             )
         ]
     )
-    async def play(ctx, song=None):
+    async def play(ctx, song):
         reqs = { REQUIRE_USER_IN_CALL: True }
         if not song: reqs[REQUIRE_BOT_IN_CALL] = True
         await client.music.reqs(
             ctx,
-            lambda c=ctx, s=song or None: client.music.command_play(c, s),
+            lambda c=ctx, s=song: client.music.command_play(c, s),
             **reqs
         )
     
@@ -43,38 +43,61 @@ def register_commands(client):
         guild_ids=command_guilds
     )
     async def pause(ctx):
-        reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
+        reqs = {
+            REQUIRE_USER_IN_CALL: True,
+            REQUIRE_BOT_IN_CALL: True,
+            REQUIRE_BOT_PLAYING: True
+        }
         await client.music.reqs(
             ctx,
             lambda c=ctx: client.music.pause(c),
             **reqs
         )
     
-    '''
+    @slash.slash(
+        name='resume', 
+        description='Resume playing a song that was paused', 
+        guild_ids=command_guilds
+    )
+    async def resume(ctx):
+        reqs = {
+            REQUIRE_USER_IN_CALL: True,
+            REQUIRE_BOT_IN_CALL: True,
+            REQUIRE_BOT_PAUSED: True
+        }
+        await client.music.reqs(
+            ctx,
+            lambda c=ctx: client.music.resume(c),
+            **reqs
+        )
+    
     @slash.slash(
         name='skip', 
         description='Skips the currently playing song', 
         guild_ids=command_guilds
     )
     async def skip(ctx):
-        reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
+        reqs = {
+            REQUIRE_USER_IN_CALL: True,
+            REQUIRE_BOT_IN_CALL: True,
+            REQUIRE_BOT_QUEUE: True
+        }
         await client.music.reqs(
             ctx,
-            lambda c=ctx: client.music.skip(ctx)
+            lambda c=ctx: client.music.skip(c),
             **reqs
         )
-    '''
     
     @slash.slash(
-        name='reset', 
+        name='stop', 
         description=f'Stop playing music and clears the queue',
         guild_ids=command_guilds
     )
-    async def reset(ctx):
+    async def stop(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
         await client.music.reqs(
             ctx,
-            lambda c=ctx: client.music.reset(ctx),
+            lambda c=ctx: client.music.reset(c),
             **reqs
         )
         
@@ -87,7 +110,7 @@ def register_commands(client):
         reqs = { REQUIRE_USER_IN_CALL: True }
         await client.music.reqs(
             ctx,
-            lambda c=ctx: client.music.toggle_download(ctx),
+            lambda c=ctx: client.music.toggle_download(c),
             **reqs
         )
     

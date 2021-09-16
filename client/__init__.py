@@ -19,10 +19,8 @@ class TreeClient(discord.Client):
     def __init__(self):
         super().__init__()
         self.initialized = False
-        self.calls = dict()
         # TODO: Add way to switch between guilds in interactive prompt
         # self.prompt = InteractivePrompt(self).prompt
-        self.music = MusicModule(self)
 
     def assemble_channel_dict(self):
         self.channel_dict = dict()
@@ -40,25 +38,19 @@ class TreeClient(discord.Client):
                 value = f'<:{emoji.name}:{emoji.id}>'
             self.emoji_dict[key] = value
     
-    def is_connected(self, guild):
-        return guild in self.calls.keys() and self.calls[guild].is_connected()
-    
-    async def close_connection(self, guild):
-        await self.calls[guild].disconnect()
-    
     async def join(self, channel):
         # Join a voice channel or leave it if already joined.
-        if hasattr(self, 'voice_client') and self.voice_client.is_connected():
-            current_channel = self.calls[channel.guild].voice_client.channel
+        if hasattr(self, 'voice_client') and channel.guild.voice_client.is_connected():
+            current_channel = channel.guild.voice_client.channel
             if current_channel != channel:
-                await self.calls[channel.guild].move_to(channel)
+                await channel.guild.voice_client.move_to(channel)
                 logging.info(f'\nSuccessfully switched from \'{current_channel}\' to \'{channel}\'.')
                 return True
             else:
                 logging.warning('Tried to re-join the same channel!')
                 return False
         else:
-            self.calls[channel.guild] = await channel.connect()
+            await channel.connect()
             logging.info(f'Successfully connected to \'{channel}\'.')
             return True
 
@@ -70,8 +62,11 @@ class TreeClient(discord.Client):
             # Assemble dictionary server assets
             self.assemble_channel_dict()
             self.assemble_emoji_dict()
-            # Init command prompt functionality (not currently active)
+            # Init command prompt (not currently active)
             # self.loop.create_task(self.prompt())
+            
+            # Init music here so the bot can build a settings dict for each guild
+            self.music = MusicModule(self)
             
             self.initialized = True
     
@@ -79,5 +74,5 @@ class TreeClient(discord.Client):
         logging.info('Resuming Reg session...')
     
     async def on_message(self, message):
-        if message.author == self.user:
+        if message.author == self.user or message.author.bot:
             return

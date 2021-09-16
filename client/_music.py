@@ -1,4 +1,5 @@
 # STANDARD LIB
+import contextlib
 import logging
 import os
 import queue
@@ -29,55 +30,113 @@ def link_valid(link):
         logging.debug(f'Error resolving link: {link}\n', exc_info=True)
         return False
 
+class MusicSettings():
+    def __init__(self):
+        self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
+        self.download = DOWNLOAD_BY_DEFAULT
+    
+    def clear_queue(self):
+        self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
+    
+    def toggle_download(self):
+        self.download = not self.download
+    
+    def dequeue(self):
+        return self.queue.get_nowait()
+    
+    def enqueue(self, item):
+        return self.queue.put_nowait(item)
+    
+    def queue_size(self):
+        return self.queue.qsize()
+
 class MusicModule():
     def __init__(self, parent):
         self.parent = parent
         self.ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
-        self.download_dict = dict()
-        self.pause_dict = dict()
-        self.queue_dict = dict()
-    
-    def do_download(self, guild):
-        return self.download_dict[guild] if guild in self.download_dict else DOWNLOAD_BY_DEFAULT
+        self.settings_dict = {guild: MusicSettings() for guild in self.parent.guilds}
+        
+        # clean up any audio files from last execution
+        for filename in os.listdir('.'):
+            if filename.endswith(('.mp3', '.m4a', '.webm')):
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(filename)
     
     def get_ffmpeg_options(self, guild):
         options = FFMPEG_BASE_OPTIONS
-        if not self.do_download(guild): options['before_options'] = FFMPEG_STREAM_OPTIONS
+        if not self.settings_dict[guild].download: options['before_options'] = FFMPEG_STREAM_OPTIONS
         return options
+    
+    def get_title(self, video):
+        if 'entries' in video:
+            video = video['entries'][0]
+        return video['title']
     
     def get_source(self, video, guild):
         if 'entries' in video:
             video = video['entries'][0]
-        if self.do_download(guild):
+        if self.settings_dict[guild].download:
             return self.ytdl.prepare_filename(video)
         else:
             return video['formats'][0]['url']
     
+    def is_connected(self, guild):
+        return (
+            hasattr(guild, 'voice_client') and
+            guild.voice_client != None and
+            guild.voice_client.is_connected()
+        )
+    
+    def is_playing(self, guild):
+        return self.is_connected(guild) and guild.voice_client.is_playing()
+    
+    def is_paused(self, guild):
+        return self.is_connected(guild) and guild.voice_client.is_paused()
+    
+    def can_play(self, guild):
+        return self.is_connected(guild) and not guild.voice_client.is_playing()
+    
     async def reqs(self, ctx, lamb, **kwargs):
         if REQUIRE_USER_IN_CALL in kwargs:
             if not ctx.author.voice:
-                await ctx.send('You must be in a voice channel to use this command.')
-                return
+                return await ctx.send('❌ You must be connected to a voice channel to use this command.')
         if REQUIRE_BOT_IN_CALL in kwargs:
-            if not self.parent.is_connected(ctx.author.guild):
-                await ctx.send('I\'m not connected to any voice channels!')
-                return
+            if not self.is_connected(ctx.guild):
+                return await ctx.send('❌ I must be connected to a voice channel for this command to be valid.')
+        if REQUIRE_BOT_PLAYING in kwargs:
+            if not self.is_playing(ctx.guild):
+                return await ctx.send('❌ I must be playing audio for this command to be valid.')
+        if REQUIRE_BOT_PAUSED in kwargs:
+            if not self.is_paused(ctx.guild):
+                return await ctx.send('❌ I must be paused for this command to be valid.')
+        if REQUIRE_BOT_QUEUE in kwargs:
+            if not self.settings_dict[ctx.guild].queue_size() > 0:
+                return await ctx.send('❌ There must be items in the queue for this command to be valid.')
         return await lamb()
     
     async def download(self, query, download):
         search = False if link_valid(query.strip()) else True
+        logging.info(f'Searching: {query}' if search else f'Playing: {query}')
         query = f'ytsearch:{query}' if search else query
         return await self.parent.loop.run_in_executor(None,
             lambda s=self, q=query, d=download: s.ytdl.extract_info(q, download=d))
+    
+    def enqueue(self, guild, video):
+        try:
+            self.settings_dict[guild].enqueue(video)
+        except queue.Full:
+            raise
+        return True # successfully added to queue
         
     def dequeue(self, error, guild, prev_source):
         if error: logging.error(f'Error during play: {e}', exc_info=True)
         if not link_valid(prev_source):
-            os.remove(prev_source) # Clean up files that have finished playing
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(prev_source) # Clean up files that have finished playing
 
-        if guild.voice_client.is_connected() and not guild.voice_client.is_playing():
+        if self.can_play(guild):
             try:
-                video = self.queue_dict[guild].get_nowait()
+                video = self.settings_dict[guild].dequeue()
             except (KeyError, queue.Empty):
                 return False
             else:
@@ -87,81 +146,62 @@ class MusicModule():
         source = self.get_source(video, guild)
         logging.info(f'Playing from source: {source}')
         stream = discord.FFmpegPCMAudio(source, **self.get_ffmpeg_options(guild))
+        
+        if guild.voice_client.is_paused():
+            return self.enqueue(guild, video)
+        
         try:
             guild.voice_client.play(stream,
                 after=lambda e, g=guild, s=source: self.dequeue(e, g, s))
-            return True
+            logging.info('Playing video...')
+            return False # not queued
         except discord.errors.ClientException:
-            if guild not in self.queue_dict:
-                self.queue_dict[guild] = queue.Queue(maxsize=QUEUE_MAXSIZE)
-            try:
-                self.queue_dict[guild].put_nowait(video)
-            except queue.Full:
-                raise
-            else:
-                return False
+            logging.info('Queueing video...')
+            return self.enqueue(guild, video) # try add to queue
     
     async def command_play(self, ctx, query):
         await ctx.defer()
-        if not self.parent.is_connected(ctx.author.guild):
-            if ctx.author.guild in self.queue_dict:
-                self.queue_dict[ctx.author.guild] = queue.Queue(maxsize=QUEUE_MAXSIZE)
+        if not self.is_connected(ctx.guild):
+            logging.info('Establishing connection to voice channel...')
             await self.parent.join(ctx.author.voice.channel)
+            logging.info('...connection established.')
         
-        if not query:
-            await self.resume(ctx)
-            return
-        
-        video = await self.download(query, self.do_download(ctx.author.guild))
+        logging.info('Downloading video...')
+        video = await self.download(query, self.settings_dict[ctx.guild].download)
+        logging.info('...video successfully downloaded.')
         try:
-            status = self.play(video, ctx.author.guild)
+            queued = self.play(video, ctx.guild)
         except queue.Full:
-            await ctx.send(f'The queue is full (max: {QUEUE_MAXSIZE}, current: {self.queue_dict[ctx.author.guild].qsize()}).')
+            num = self.settings_dict[ctx.guild].queue_size()
+            logging.warning(f'User hit queue size cap: (max: {QUEUE_MAXSIZE}, current: {num})')
+            return await ctx.send(f'The queue is full ({num}/{QUEUE_MAXSIZE}).')
         else:
-            title = video['title']
-            if status:
-                await ctx.send(f'**Now playing:** {title}')
-            else:
-                await ctx.send(f'{title} has been added to the queue.')
-
+            title = self.get_title(video)
+            if queued:
+                logging.info(f'...successfully added to queue: {title}')
+                return await ctx.send(f'**✅ Added to queue:** {title}')
+            logging.info(f'...successfully playing: {title}')
+            return await ctx.send(f'✅ **Now playing:** {title}')
+            
     async def pause(self, ctx):
-        self.parent.calls[ctx.author.guild].pause()
-        await ctx.send('Paused the current song.')
+        ctx.guild.voice_client.pause()
+        return await ctx.send('✅ Paused the current song.')
     
     async def resume(self, ctx):
-        self.parent.calls[ctx.author.guild].resume()
-        await ctx.send('Resumed the current song.')
+        ctx.guild.voice_client.resume()
+        return await ctx.send('✅ Resumed the current song.')
+    
+    async def skip(self, ctx):
+        ctx.guild.voice_client.stop()
+        return await ctx.send('✅ Skipped this song.')
 
     async def reset(self, ctx):
-        self.queue_dict[ctx.author.guild] = queue.Queue(maxsize=QUEUE_MAXSIZE)
-        if self.parent.is_connected(ctx.author.guild):
-            self.parent.calls[ctx.author.guild].stop()
-        await ctx.send('Queue cleared.')
+        self.settings_dict[ctx.guild].clear_queue()
+        ctx.guild.voice_client.stop()
+        return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
     
     async def toggle_download(self, ctx):
-        if ctx.author.guild not in self.download_dict:
-            self.download_dict[ctx.author.guild] = True
-        else:
-            self.download_dict[ctx.author.guild] = not self.download_dict[ctx.author.guild]
-        if self.download_dict[ctx.author.guild]:
-            await ctx.send('Enabled downloading. This may help with audio quality issues, but especially long files may take a while to play.')
-        else:
-            await ctx.send('Enabled streaming. This will reduce time to play streams, but there may be audio quality issues depending on the quality of my connection.')
-
-class Download(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)
-        self.data = data
-        self.title = data.get('title')
-        self.url = ""
-
-    @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False):
-        ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
-        loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-        if 'entries' in data:
-            # take first item from a playlist
-            data = data['entries'][0]
-        filename = data['title'] if stream else ytdl.prepare_filename(data)
-        return filename
+        self.settings_dict[ctx.guild].toggle_download()
+        if self.settings_dict[ctx.guild].download:
+            return await ctx.send('✅ Enabled downloading. This may help with audio quality issues, but especially long files may take a while to play.')
+        return await ctx.send('✅ Enabled streaming. This will reduce time to play streams, but there may be audio quality issues depending on the connection quality.')

@@ -13,10 +13,8 @@ from commands import register_commands
 
 # TODO: Add a way for prompt to switch between guilds
 # TODO: Add a way to examine the queue
-# TODO: Add a way to skip forward in the queue
 # TODO: Add a way to play from file upload
-# FIXME: Pausing and then playing allows someone to jump forward in the queue
-# FIXME: Fix using the command without properly specifying arguments. Maybe add a resume command?
+# FIXME: Test behavior when file downloaded as part of queue is deleted if it's in the queue multiple times
 
 if __name__ == '__main__':
     if os.name == 'nt':
@@ -27,5 +25,5 @@ if __name__ == '__main__':
     client = TreeClient()
     register_commands(client)
     
-    logging.info('Running bot!')
+    logging.info('Initialization complete')
     client.run(os.getenv('DISCORD_TOKEN'))
