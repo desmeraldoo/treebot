@@ -21,10 +21,10 @@ def link_valid(link):
         request = requests.head(link)
         code = request.status_code
         if (code > 199 or code < 400):
-            logging.info(f'Link resolved successfully [Code {code}]')
+            logging.debug(f'Link resolved successfully [Code {code}]')
             return True
         else:
-            logging.info(f'Link received error [Code {code}]')
+            logging.debug(f'Link received error [Code {code}]')
             return False
     except Exception:
         logging.debug(f'Error resolving link: {link}\n', exc_info=True)
@@ -144,7 +144,7 @@ class MusicModule():
     
     def play(self, video, guild):
         source = self.get_source(video, guild)
-        logging.info(f'Playing from source: {source}')
+        logging.info(f'[{guild}] Playing from source: {source}')
         stream = discord.FFmpegPCMAudio(source, **self.get_ffmpeg_options(guild))
         
         if guild.voice_client.is_paused():
@@ -153,22 +153,20 @@ class MusicModule():
         try:
             guild.voice_client.play(stream,
                 after=lambda e, g=guild, s=source: self.dequeue(e, g, s))
-            logging.info('Playing video...')
+            logging.info(f'[{guild}] Playing video...')
             return False # not queued
         except discord.errors.ClientException:
-            logging.info('Queueing video...')
+            logging.info(f'[{guild}] Queueing video...')
             return self.enqueue(guild, video) # try add to queue
     
     async def command_play(self, ctx, query):
         await ctx.defer()
         if not self.is_connected(ctx.guild):
-            logging.info('Establishing connection to voice channel...')
+            logging.info(f'[{ctx.guild}] Establishing connection to voice channel...')
             await self.parent.join(ctx.author.voice.channel)
-            logging.info('...connection established.')
         
-        logging.info('Downloading video...')
+        logging.info(f'[{ctx.guild}] Downloading video...')
         video = await self.download(query, self.settings_dict[ctx.guild].download)
-        logging.info('...video successfully downloaded.')
         try:
             queued = self.play(video, ctx.guild)
         except queue.Full:
@@ -178,9 +176,9 @@ class MusicModule():
         else:
             title = self.get_title(video)
             if queued:
-                logging.info(f'...successfully added to queue: {title}')
+                logging.info(f'[{ctx.guild}] ...successfully added to queue: {title}')
                 return await ctx.send(f'**✅ Added to queue:** {title}')
-            logging.info(f'...successfully playing: {title}')
+            logging.info(f'[{ctx.guild}] ...successfully playing: {title}')
             return await ctx.send(f'✅ **Now playing:** {title}')
             
     async def pause(self, ctx):
