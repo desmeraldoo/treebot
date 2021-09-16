@@ -65,6 +65,7 @@ class MusicModule():
     def get_ffmpeg_options(self, guild):
         options = FFMPEG_BASE_OPTIONS
         if not self.settings_dict[guild].download: options['before_options'] = FFMPEG_STREAM_OPTIONS
+        options['executable'] = os.getenv('FFMPEG_EXEC_LOC')
         return options
     
     def get_title(self, video):
