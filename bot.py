@@ -11,7 +11,6 @@ import logger
 from client import TreeClient
 from commands import register_commands
 
-# TODO: Add a way to loop the same song
 # TODO: Add a way to examine the queue
 # TODO: Add a way to play from file upload
 # TODO: Add a way to play a playlist
