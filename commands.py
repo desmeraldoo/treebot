@@ -18,7 +18,6 @@ def register_commands(client):
     @slash.slash(
         name='play', 
         description='Play a song. If already playing or paused, adds the song to the queue',
-        guild_ids=command_guilds,
         options=[
             manage_commands.create_option(
                 name='song',
@@ -38,8 +37,7 @@ def register_commands(client):
     
     @slash.slash(
         name='pause', 
-        description='Pause the current song', 
-        guild_ids=command_guilds
+        description='Pause the current song'
     )
     async def pause(ctx):
         reqs = {
@@ -55,8 +53,7 @@ def register_commands(client):
     
     @slash.slash(
         name='resume', 
-        description='Resume playing a song that was paused', 
-        guild_ids=command_guilds
+        description='Resume playing a song that was paused'
     )
     async def resume(ctx):
         reqs = {
@@ -72,8 +69,7 @@ def register_commands(client):
     
     @slash.slash(
         name='skip', 
-        description='Skips the currently playing song', 
-        guild_ids=command_guilds
+        description='Skips the currently playing song'
     )
     async def skip(ctx):
         reqs = {
@@ -89,8 +85,7 @@ def register_commands(client):
     
     @slash.slash(
         name='stop', 
-        description=f'Stop playing music and clears the queue',
-        guild_ids=command_guilds
+        description=f'Stop playing music and clears the queue'
     )
     async def stop(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
@@ -102,8 +97,7 @@ def register_commands(client):
     
     @slash.slash(
         name='loop', 
-        description='Toggles looping the currently playing song. The queue will not advance', 
-        guild_ids=command_guilds
+        description='Toggles looping the currently playing song. The queue will not advance'
     )
     async def loop(ctx):
         reqs = {
@@ -118,8 +112,7 @@ def register_commands(client):
         
     @slash.slash(
         name='toggle_download', 
-        description='Toggle downloading of logs. Downloading is disabled by default', 
-        guild_ids=command_guilds
+        description='Toggle downloading of logs. Downloading is disabled by default'
     )
     async def toggle_download(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True }
