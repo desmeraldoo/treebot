@@ -119,8 +119,11 @@ class MusicModule():
         search = False if link_valid(query.strip()) else True
         logging.info(f'Searching: {query}' if search else f'Playing: {query}')
         query = f'ytsearch:{query}' if search else query
-        return await self.parent.loop.run_in_executor(None,
-            lambda s=self, q=query, d=download: s.ytdl.extract_info(q, download=d))
+        try:
+            return await self.parent.loop.run_in_executor(None,
+                lambda s=self, q=query, d=download: s.ytdl.extract_info(q, download=d))
+        except youtube_dl.utils.DownloadError:
+            return False
     
     def enqueue(self, guild, video):
         try:
@@ -168,6 +171,9 @@ class MusicModule():
         
         logging.info(f'[{ctx.guild}] Downloading video...')
         video = await self.download(query, self.settings_dict[ctx.guild].download)
+        if not video:
+            return await('❌ Sorry, the video failed to download.')
+        
         try:
             queued = self.play(video, ctx.guild)
         except queue.Full:

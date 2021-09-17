@@ -30,7 +30,6 @@ def register_commands(client):
     )
     async def play(ctx, song):
         reqs = { REQUIRE_USER_IN_CALL: True }
-        if not song: reqs[REQUIRE_BOT_IN_CALL] = True
         await client.music.reqs(
             ctx,
             lambda c=ctx, s=song: client.music.command_play(c, s),
