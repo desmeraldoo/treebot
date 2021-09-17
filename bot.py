@@ -18,6 +18,9 @@ from commands import register_commands
 # TODO: Leave call when no one else is there
 # TODO: Add a way for prompt to switch between guilds
 # TODO: Add REQUIRE_USER_NOT_DEAF req
+# TODO: Add progress bar for video downloads
+# TODO: Add dedicated folder for videos
+# TODO: Run a different event loop for each guild
 
 # FIXME: Test behavior when file downloaded as part of queue is deleted if it's in the queue multiple times
 # FIXME: Add failsafe for when Discord fails to render slash command and the user's message is sent as normal

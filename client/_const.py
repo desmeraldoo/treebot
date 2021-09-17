@@ -2,7 +2,6 @@ DEFAULT_CHANNEL = 'moonlight'
 DOWNLOAD_BY_DEFAULT = False
 EMOJI_REGEX = r'<a:.+?:\d+>|<:.+?:\d+>'
 FFMPEG_STREAM_OPTIONS = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
-FFMPEG_BASE_OPTIONS = {}
 MENTION_REGEX = r'<@!*&*[0-9]+>'
 PROMPT = 'Enter command [[c]hange] [[j]oin] [[m]essage] [[n]on-interactive]: '
 QUEUE_MAXSIZE = 10

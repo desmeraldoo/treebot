@@ -99,6 +99,22 @@ def register_commands(client):
             lambda c=ctx: client.music.reset(c),
             **reqs
         )
+    
+    @slash.slash(
+        name='loop', 
+        description='Toggles looping the currently playing song. The queue will not advance', 
+        guild_ids=command_guilds
+    )
+    async def loop(ctx):
+        reqs = {
+            REQUIRE_USER_IN_CALL: True,
+            REQUIRE_BOT_IN_CALL: True
+        }
+        await client.music.reqs(
+            ctx,
+            lambda c=ctx: client.music.toggle_looping(c),
+            **reqs
+        )
         
     @slash.slash(
         name='toggle_download', 

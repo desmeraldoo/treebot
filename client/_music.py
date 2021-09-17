@@ -1,4 +1,5 @@
 # STANDARD LIB
+import asyncio
 import contextlib
 import logging
 import os
@@ -33,13 +34,18 @@ def link_valid(link):
 class MusicSettings():
     def __init__(self):
         self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
-        self.download = DOWNLOAD_BY_DEFAULT
+        self.downloading = DOWNLOAD_BY_DEFAULT
+        self.looping = False
+        self.skip_next = False
     
     def clear_queue(self):
         self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
     
     def toggle_download(self):
-        self.download = not self.download
+        self.downloading = not self.downloading
+    
+    def toggle_looping(self):
+        self.looping = not self.looping
     
     def dequeue(self):
         return self.queue.get_nowait()
@@ -56,17 +62,14 @@ class MusicModule():
         self.ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
         self.settings_dict = {guild: MusicSettings() for guild in self.parent.guilds}
         
+        self.cleanup()
+    
+    def cleanup(self):
         # clean up any audio files from last execution
         for filename in os.listdir('.'):
-            if filename.endswith(('.mp3', '.m4a', '.webm')):
-                with contextlib.suppress(FileNotFoundError):
+            if filename.endswith(('.mp3', '.m4a', '.webm', '.part')):
+                with contextlib.suppress(FileNotFoundError, PermissionError):
                     os.remove(filename)
-    
-    def get_ffmpeg_options(self, guild):
-        options = FFMPEG_BASE_OPTIONS
-        if not self.settings_dict[guild].download: options['before_options'] = FFMPEG_STREAM_OPTIONS
-        options['executable'] = os.getenv('FFMPEG_EXEC_LOC')
-        return options
     
     def get_title(self, video):
         if 'entries' in video:
@@ -76,7 +79,7 @@ class MusicModule():
     def get_source(self, video, guild):
         if 'entries' in video:
             video = video['entries'][0]
-        if self.settings_dict[guild].download:
+        if self.settings_dict[guild].downloading:
             return self.ytdl.prepare_filename(video)
         else:
             return video['formats'][0]['url']
@@ -94,7 +97,7 @@ class MusicModule():
     def is_paused(self, guild):
         return self.is_connected(guild) and guild.voice_client.is_paused()
     
-    def can_play(self, guild):
+    def can_dequeue(self, guild):
         return self.is_connected(guild) and not guild.voice_client.is_playing()
     
     async def reqs(self, ctx, lamb, **kwargs):
@@ -115,13 +118,13 @@ class MusicModule():
                 return await ctx.send('❌ There must be items in the queue for this command to be valid.')
         return await lamb()
     
-    async def download(self, query, download):
+    async def download(self, query, downloading):
         search = False if link_valid(query.strip()) else True
         logging.info(f'Searching: {query}' if search else f'Playing: {query}')
         query = f'ytsearch:{query}' if search else query
         try:
             return await self.parent.loop.run_in_executor(None,
-                lambda s=self, q=query, d=download: s.ytdl.extract_info(q, download=d))
+                lambda s=self, q=query, d=downloading: s.ytdl.extract_info(q, download=d))
         except youtube_dl.utils.DownloadError:
             return False
     
@@ -132,31 +135,41 @@ class MusicModule():
             raise
         return True # successfully added to queue
         
-    def dequeue(self, error, guild, prev_source):
+    def dequeue(self, error, guild, prev_video):
         if error: logging.error(f'Error during play: {e}', exc_info=True)
-        if not link_valid(prev_source):
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(prev_source) # Clean up files that have finished playing
 
-        if self.can_play(guild):
-            try:
-                video = self.settings_dict[guild].dequeue()
-            except (KeyError, queue.Empty):
-                return False
+        # if we can't dequeue, we are either not connected or already playing something else
+        if self.can_dequeue(guild):
+            if self.settings_dict[guild].looping and not self.settings_dict[guild].skip_next:
+                self.play(prev_video, guild)
             else:
-                self.play(video, guild)
+                if self.settings_dict[guild].skip_next: self.settings_dict[guild].skip_next = False
+                try:
+                    video = self.settings_dict[guild].dequeue()
+                except queue.Empty:
+                    return False
+                else:
+                    prev_source = self.get_source(prev_video, guild)
+                    if not link_valid(prev_source):
+                        with contextlib.suppress(FileNotFoundError):
+                            os.remove(prev_source) # Clean up files that have finished playing
+                    self.play(video, guild)
     
     def play(self, video, guild):
         source = self.get_source(video, guild)
-        logging.info(f'[{guild}] Playing from source: {source}')
-        stream = discord.FFmpegPCMAudio(source, **self.get_ffmpeg_options(guild))
+        logging.debug(f'[{guild}] Playing from source: {source}')
         
         if guild.voice_client.is_paused():
             return self.enqueue(guild, video)
         
         try:
+            stream = discord.FFmpegPCMAudio(
+                source,
+                executable=os.getenv('FFMPEG_EXEC_LOC'),
+                before_options=FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
+            )
             guild.voice_client.play(stream,
-                after=lambda e, g=guild, s=source: self.dequeue(e, g, s))
+                after=lambda e, g=guild, v=video: self.dequeue(e, g, v))
             logging.info(f'[{guild}] Playing video...')
             return False # not queued
         except discord.errors.ClientException:
@@ -170,9 +183,9 @@ class MusicModule():
             await self.parent.join(ctx.author.voice.channel)
         
         logging.info(f'[{ctx.guild}] Downloading video...')
-        video = await self.download(query, self.settings_dict[ctx.guild].download)
+        video = await self.download(query, self.settings_dict[ctx.guild].downloading)
         if not video:
-            return await('❌ Sorry, the video failed to download.')
+            return await ctx.send('❌ Sorry, the video failed to download.')
         
         try:
             queued = self.play(video, ctx.guild)
@@ -197,16 +210,25 @@ class MusicModule():
         return await ctx.send('✅ Resumed the current song.')
     
     async def skip(self, ctx):
+        self.settings_dict[ctx.guild].skip_next = True
         ctx.guild.voice_client.stop()
         return await ctx.send('✅ Skipped this song.')
 
     async def reset(self, ctx):
+        self.settings_dict[ctx.guild].skip_next = True
         self.settings_dict[ctx.guild].clear_queue()
         ctx.guild.voice_client.stop()
+        self.cleanup()
         return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
+    
+    async def toggle_looping(self, ctx):
+        self.settings_dict[ctx.guild].toggle_looping()
+        if self.settings_dict[ctx.guild].looping:
+            return await ctx.send('✅ Enabled looping. The queue will not advance while looping is enabled.')
+        return await ctx.send('✅ Disabled looping. The queue can now advance.')
     
     async def toggle_download(self, ctx):
         self.settings_dict[ctx.guild].toggle_download()
-        if self.settings_dict[ctx.guild].download:
+        if self.settings_dict[ctx.guild].downloading:
             return await ctx.send('✅ Enabled downloading. This may help with audio quality issues, but especially long files may take a while to play.')
         return await ctx.send('✅ Enabled streaming. This will reduce time to play streams, but there may be audio quality issues depending on the connection quality.')

@@ -44,19 +44,23 @@ class TreeClient(discord.Client):
             current_channel = channel.guild.voice_client.channel
             if current_channel != channel:
                 await channel.guild.voice_client.move_to(channel)
-                logging.info(f'\nSuccessfully switched from \'{current_channel}\' to \'{channel}\'.')
+                logging.info(f'[{channel.guild}] \nSuccessfully switched from \'{current_channel}\' to \'{channel}\'.')
                 return True
             else:
-                logging.warning('Tried to re-join the same channel!')
+                logging.warning(f'[{channel.guild}] Tried to re-join the same channel!')
                 return False
         else:
-            await channel.connect()
-            logging.info(f'Successfully connected to \'{channel}\'.')
+            try:
+                await channel.connect()
+            except discord.errors.ClientException:
+                logging.warning(f'[{channel.guild}] Already connected to \'{channel}\'!')
+            else:
+                logging.info(f'Successfully connected to \'{channel}\'.')
             return True
 
     async def on_ready(self):
         for guild in self.guilds:
-            logging.info(f'{self.user} has connected to {guild.name}!')
+            logging.info(f'[{guild}] {self.user} has connected to {guild}!')
         
         if not self.initialized:
             # Assemble dictionary server assets
