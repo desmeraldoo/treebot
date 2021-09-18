@@ -13,11 +13,12 @@ import pdb
 
 def register_commands(client):
     slash = discord_slash.SlashCommand(client, sync_commands=True)
-    command_guilds = list(map(int, json.loads(os.getenv('GUILDS'))))
+    command_guilds = [guild.id for guild in client.guilds]
     
     @slash.slash(
         name='play', 
         description='Play a song. If already playing or paused, adds the song to the queue',
+        guild_ids=command_guilds,
         options=[
             manage_commands.create_option(
                 name='song',
@@ -37,7 +38,8 @@ def register_commands(client):
     
     @slash.slash(
         name='pause', 
-        description='Pause the current song'
+        description='Pause the current song', 
+        guild_ids=command_guilds
     )
     async def pause(ctx):
         reqs = {
@@ -53,7 +55,8 @@ def register_commands(client):
     
     @slash.slash(
         name='resume', 
-        description='Resume playing a song that was paused'
+        description='Resume playing a song that was paused', 
+        guild_ids=command_guilds
     )
     async def resume(ctx):
         reqs = {
@@ -69,7 +72,8 @@ def register_commands(client):
     
     @slash.slash(
         name='skip', 
-        description='Skips the currently playing song'
+        description='Skips the currently playing song', 
+        guild_ids=command_guilds
     )
     async def skip(ctx):
         reqs = {
@@ -85,7 +89,8 @@ def register_commands(client):
     
     @slash.slash(
         name='stop', 
-        description=f'Stop playing music and clears the queue'
+        description='Stop playing music and clears the queue', 
+        guild_ids=command_guilds
     )
     async def stop(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
@@ -97,7 +102,8 @@ def register_commands(client):
     
     @slash.slash(
         name='loop', 
-        description='Toggles looping the currently playing song. The queue will not advance'
+        description='Toggles looping the currently playing song. The queue will not advance', 
+        guild_ids=command_guilds
     )
     async def loop(ctx):
         reqs = {
@@ -112,7 +118,8 @@ def register_commands(client):
         
     @slash.slash(
         name='toggle_download', 
-        description='Toggle downloading of logs. Downloading is disabled by default'
+        description='Toggle downloading of logs. Downloading is disabled by default', 
+        guild_ids=command_guilds
     )
     async def toggle_download(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True }

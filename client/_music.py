@@ -71,19 +71,6 @@ class MusicModule():
                 with contextlib.suppress(FileNotFoundError, PermissionError):
                     os.remove(filename)
     
-    def get_title(self, video):
-        if 'entries' in video:
-            video = video['entries'][0]
-        return video['title']
-    
-    def get_source(self, video, guild):
-        if 'entries' in video:
-            video = video['entries'][0]
-        if self.settings_dict[guild].downloading:
-            return self.ytdl.prepare_filename(video)
-        else:
-            return video['formats'][0]['url']
-    
     def is_connected(self, guild):
         return (
             hasattr(guild, 'voice_client') and
@@ -99,6 +86,19 @@ class MusicModule():
     
     def can_dequeue(self, guild):
         return self.is_connected(guild) and not guild.voice_client.is_playing()
+    
+    def get_title(self, video):
+        if 'entries' in video:
+            video = video['entries'][0]
+        return video['title']
+    
+    def get_source(self, video, guild):
+        if 'entries' in video:
+            video = video['entries'][0]
+        if self.settings_dict[guild].downloading:
+            return self.ytdl.prepare_filename(video)
+        else:
+            return video['formats'][0]['url']
     
     async def reqs(self, ctx, lamb, **kwargs):
         if REQUIRE_USER_IN_CALL in kwargs:
@@ -133,6 +133,7 @@ class MusicModule():
             self.settings_dict[guild].enqueue(video)
         except queue.Full:
             raise
+        logging.info(f'[{guild}] Queueing {self.get_title(video)}...')
         return True # successfully added to queue
         
     def dequeue(self, error, guild, prev_video):
@@ -155,13 +156,11 @@ class MusicModule():
                             os.remove(prev_source) # Clean up files that have finished playing
                     self.play(video, guild)
     
-    def play(self, video, guild):
-        source = self.get_source(video, guild)
-        logging.debug(f'[{guild}] Playing from source: {source}')
-        
+    def play(self, video, guild):      
         if guild.voice_client.is_paused():
             return self.enqueue(guild, video)
         
+        source = self.get_source(video, guild)
         try:
             stream = discord.FFmpegPCMAudio(
                 source,
@@ -170,11 +169,14 @@ class MusicModule():
             )
             guild.voice_client.play(stream,
                 after=lambda e, g=guild, v=video: self.dequeue(e, g, v))
-            logging.info(f'[{guild}] Playing video...')
-            return False # not queued
-        except discord.errors.ClientException:
-            logging.info(f'[{guild}] Queueing video...')
+        except (TypeError, PermissionError):
+            raise
+        except discord.errors.ClientException: # Watch out! If the bot queues for no reason, it may be due to a silent ClientException unrelated to expected behavior.
             return self.enqueue(guild, video) # try add to queue
+        else:
+            logging.info(f'[{guild}] Playing {self.get_title(video)}')
+            return False # not queued
+
     
     async def command_play(self, ctx, query):
         await ctx.defer()
@@ -189,6 +191,8 @@ class MusicModule():
         
         try:
             queued = self.play(video, ctx.guild)
+        except (TypeError, PermissionError):
+            return await ctx.send('❌❌ Whoops, this is embarrassing. Looks like the machine I\'m running on may not be properly set up. Please contact the developer!')
         except queue.Full:
             num = self.settings_dict[ctx.guild].queue_size()
             logging.warning(f'User hit queue size cap: (max: {QUEUE_MAXSIZE}, current: {num})')
