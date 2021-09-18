@@ -11,6 +11,7 @@ import logger
 from client import TreeClient
 from commands import register_commands
 
+# TODO: Add a command to leave all voice channels
 # TODO: Add a way to examine the queue
 # TODO: Add a way to play from file upload
 # TODO: Add a way to play a playlist
