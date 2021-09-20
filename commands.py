@@ -13,12 +13,10 @@ import pdb
 
 def register_commands(client):
     slash = discord_slash.SlashCommand(client, sync_commands=True)
-    command_guilds = [guild.id for guild in client.guilds]
-    
+
     @slash.slash(
         name='play', 
         description='Plays a song. If already playing or paused, adds the song to the queue',
-        guild_ids=command_guilds,
         options=[
             manage_commands.create_option(
                 name='song',
@@ -39,7 +37,6 @@ def register_commands(client):
     @slash.slash(
         name='pause', 
         description='Pauses the current song', 
-        guild_ids=command_guilds
     )
     async def pause(ctx):
         reqs = {
@@ -56,7 +53,6 @@ def register_commands(client):
     @slash.slash(
         name='resume', 
         description='Resumes playing a song that was paused', 
-        guild_ids=command_guilds
     )
     async def resume(ctx):
         reqs = {
@@ -73,7 +69,6 @@ def register_commands(client):
     @slash.slash(
         name='skip', 
         description='Skips the currently playing song. If paused, plays the next song', 
-        guild_ids=command_guilds
     )
     async def skip(ctx):
         reqs = {
@@ -90,7 +85,6 @@ def register_commands(client):
     @slash.slash(
         name='stop', 
         description='Stops playing music and clears the queue', 
-        guild_ids=command_guilds
     )
     async def stop(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
@@ -103,7 +97,6 @@ def register_commands(client):
     @slash.slash(
         name='loop', 
         description='Toggles looping the currently playing song. The queue will not advance while looping', 
-        guild_ids=command_guilds
     )
     async def loop(ctx):
         reqs = {
@@ -119,7 +112,6 @@ def register_commands(client):
     @slash.slash(
         name='toggle_download', 
         description='Toggles downloading of logs. Downloading is disabled by default', 
-        guild_ids=command_guilds
     )
     async def toggle_download(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True }
@@ -130,9 +122,8 @@ def register_commands(client):
         )
     
     @slash.slash(
-        name='test', 
+        name='test_global', 
         description='A nonfunctional command that serves as a template for the developer', 
-        guild_ids=command_guilds
     )
     async def test(ctx):
         await ctx.send('Command is registered!')
