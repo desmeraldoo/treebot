@@ -12,7 +12,7 @@ from client._const import *
 import pdb
 
 def register_commands(client):
-    slash = discord_slash.SlashCommand(client, sync_commands=True)
+    slash = discord_slash.SlashCommand(client, sync_commands=True, debug_guild=750703990555279440, delete_from_unused_guilds=True)
 
     @slash.slash(
         name='play', 
