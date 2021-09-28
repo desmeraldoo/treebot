@@ -62,6 +62,10 @@ class MusicModule():
         self.ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
         self.settings_dict = {guild: MusicSettings() for guild in self.parent.guilds}
         
+        self.ffmpeg = os.getenv('FFMPEG_EXEC_LOC')
+        if not os.path.exists(self.ffmpeg):
+            self.ffmpeg = None
+        
         self.cleanup()
     
     def cleanup(self):
@@ -85,11 +89,7 @@ class MusicModule():
             return video['formats'][0]['url']
     
     def is_connected(self, guild):
-        return (
-            hasattr(guild, 'voice_client') and
-            guild.voice_client != None and
-            guild.voice_client.is_connected()
-        )
+        return self.parent.is_connected(guild)
     
     def is_playing(self, guild):
         return self.is_connected(guild) and guild.voice_client.is_playing()
@@ -101,6 +101,9 @@ class MusicModule():
         return self.is_connected(guild) and not guild.voice_client.is_playing()
     
     async def reqs(self, ctx, lamb, **kwargs):
+        if REQUIRE_FFMPEG in kwargs:
+            if not self.ffmpeg:
+                return await ctx.send('❌❌ Sorry, FFMPEG hasn\'t been installed correctly on my machine. Please contact a developer.')
         if REQUIRE_USER_IN_CALL in kwargs:
             if not ctx.author.voice:
                 return await ctx.send('❌ You must be connected to a voice channel to use this command.')
@@ -165,7 +168,7 @@ class MusicModule():
         try:
             stream = discord.FFmpegPCMAudio(
                 source,
-                executable=os.getenv('FFMPEG_EXEC_LOC'),
+                executable=self.ffmpeg,
                 before_options=FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
             )
             guild.voice_client.play(stream,
