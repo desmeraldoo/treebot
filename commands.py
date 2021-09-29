@@ -12,6 +12,7 @@ from client._const import *
 import pdb
 
 def register_commands(client):
+    debug = bool(os.getenv('DEBUG'))
     command_guild = int(os.getenv('DEV_GUILD'))
     slash = discord_slash.SlashCommand(client, sync_commands=True, delete_from_unused_guilds=True, debug_guild=command_guild)
     

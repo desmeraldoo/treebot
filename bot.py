@@ -28,16 +28,15 @@ import pdb
 # FIXME: Test behavior when downloading extremely long files and/or set download limit
 # FIXME: Place logs in proper directory
 
-from client._const import DEBUG
-
 if __name__ == '__main__':
     if os.name == 'nt':
         os.system('chcp 65001') # set Windows terminal output format to use utf-8
     logger.init_logging()
     dotenv.load_dotenv()
+    debug = bool(os.getenv('DEBUG'))
     
     client = client.TreeClient()
     commands.register_commands(client)
-    token = os.getenv('DEV_TOKEN') if DEBUG else os.getenv('LIVE_TOKEN')
-    logging.info(f'{"[DEBUG MODE] " if DEBUG else ""}Initialization complete!')
+    token = os.getenv('DEV_TOKEN') if debug else os.getenv('LIVE_TOKEN')
+    logging.info(f'{"[DEBUG MODE] " if debug else ""}Initialization complete!')
     client.run(token)
