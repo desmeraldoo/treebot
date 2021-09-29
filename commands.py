@@ -12,7 +12,7 @@ from client._const import *
 import pdb
 
 def register_commands(client):
-    debug = bool(os.getenv('DEBUG'))
+    debug = os.getenv('DEBUG') == 'True' # Casting as bool can lead to unexpected results.
     debug_guild = int(os.getenv('DEV_GUILD'))
     command_guilds = [debug_guild] if debug else None
     slash = discord_slash.SlashCommand(client, sync_commands=True, delete_from_unused_guilds=True, debug_guild=debug_guild)
