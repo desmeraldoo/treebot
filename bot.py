@@ -37,4 +37,4 @@ if __name__ == '__main__':
     commands.register_commands(client)
     
     logging.info('Initialization complete')
-    client.run(os.getenv('DISCORD_TOKEN'))
+    client.run(os.getenv('LIVE_TOKEN'))

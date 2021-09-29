@@ -1,6 +1,7 @@
 *.m4a
 *.mp3
 *.webm
+nohup.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
