@@ -15,8 +15,6 @@ from ._const import *
 
 import pdb
 
-def async_lambda(func): return func.__anext__()
-
 def link_valid(link):
     try:
         request = requests.head(link)
