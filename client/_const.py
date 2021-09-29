@@ -1,3 +1,4 @@
+DEBUG = False
 DEFAULT_CHANNEL = 'moonlight'
 DOWNLOAD_BY_DEFAULT = False
 EMOJI_REGEX = r'<a:.+?:\d+>|<:.+?:\d+>'

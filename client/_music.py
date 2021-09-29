@@ -33,19 +33,15 @@ def link_valid(link):
 
 class MusicSettings():
     def __init__(self):
-        self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.downloading = DOWNLOAD_BY_DEFAULT
+        self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.looping = False
         self.skip_next = False
+        
+        self._volume = 1.0
     
     def clear_queue(self):
         self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
-    
-    def toggle_download(self):
-        self.downloading = not self.downloading
-    
-    def toggle_looping(self):
-        self.looping = not self.looping
     
     def dequeue(self):
         return self.queue.get_nowait()
@@ -55,6 +51,20 @@ class MusicSettings():
     
     def queue_size(self):
         return self.queue.qsize()
+    
+    def get_volume(self):
+        return self._volume
+
+    def set_volume(self, new_volume):
+        self._volume = new_volume
+
+    def toggle_download(self):
+        self.downloading = not self.downloading
+    
+    def toggle_looping(self):
+        self.looping = not self.looping
+    
+    volume = property(get_volume, set_volume)
 
 class MusicModule():
     def __init__(self, parent):
@@ -166,10 +176,14 @@ class MusicModule():
             return self.enqueue(guild, video)
         
         try:
-            stream = discord.FFmpegPCMAudio(
-                source,
-                executable=self.ffmpeg,
-                before_options=FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
+            options = FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
+            stream = discord.PCMVolumeTransformer(
+                    discord.FFmpegPCMAudio(
+                        source,
+                        executable=self.ffmpeg,
+                        before_options=options
+                    ),
+                self.settings_dict[guild].volume
             )
             guild.voice_client.play(stream,
                 after=lambda e, g=guild, v=video: self.dequeue(e, g, v))
@@ -235,3 +249,17 @@ class MusicModule():
         if self.settings_dict[ctx.guild].downloading:
             return await ctx.send('✅ Enabled downloading. This may help with audio quality issues, but especially long files may take a while to play.')
         return await ctx.send('✅ Enabled streaming. This will reduce time to play streams, but there may be audio quality issues depending on the connection quality.')
+
+    async def set_volume(self, ctx, volume):
+        try:
+            new_volume = int(volume)
+        except ValueEror:
+            return await ctx.send(f'❌ The proposed volume ({volume}) is not a proper integer. Please choose a number greater than 0 and less than or equal to 200.')
+        if self.settings_dict[ctx.guild].volume == new_volume:
+            return await ctx.send(f'❌ The volume is already {new_volume}. No settings were changed.')
+        elif new_volume <= 0 or new_volume > 200:
+            return await ctx.send(f'❌ The proposed volume ({new_volume}) is invalid. Please choose a volume greater than 0 and less than or equal to 200.')
+        else:
+            old_volume = self.settings_dict[ctx.guild].volume
+            self.settings_dict[ctx.guild].volume = new_volume
+            return await ctx.send(f'✅ Changed volume from {old_volume} to {new_volume}. This change will take effect when the next song is played.')
