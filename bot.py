@@ -33,7 +33,7 @@ if __name__ == '__main__':
         os.system('chcp 65001') # set Windows terminal output format to use utf-8
     logger.init_logging()
     dotenv.load_dotenv()
-    debug = bool(os.getenv('DEBUG'))
+    debug = os.getenv('DEBUG') == 'True' # Casting as bool can lead to unexpected behavior.
     
     client = client.TreeClient()
     commands.register_commands(client)
