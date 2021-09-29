@@ -7,15 +7,13 @@ import os
 import dotenv
 
 # LOCAL LIB
+import client
+import commands
 import logger
-from client import TreeClient
-from commands import register_commands
 
-# TODO: Add a command to leave all voice channels
 # TODO: Add a way to examine the queue
 # TODO: Add a way to play from file upload
 # TODO: Add a way to play a playlist
-# TODO: Leave call when no one else is there
 # TODO: Add a way for prompt to switch between guilds
 # TODO: Add REQUIRE_USER_NOT_DEAF req
 # TODO: Add progress bar for video downloads
@@ -26,6 +24,7 @@ from commands import register_commands
 # FIXME: Add failsafe for when Discord fails to render slash command and the user's message is sent as normal
 # FIXME: Test behavior when downloading extremely long files and/or set download limit
 # FIXME: Place logs in proper directory
+# FIXME: Add error handling if FFMPEG is not installed
 
 if __name__ == '__main__':
     if os.name == 'nt':
@@ -33,8 +32,8 @@ if __name__ == '__main__':
     logger.init_logging()
     dotenv.load_dotenv()
     
-    client = TreeClient()
-    register_commands(client)
+    client = client.TreeClient()
+    commands.register_commands(client)
     
     logging.info('Initialization complete')
-    client.run(os.getenv('DISCORD_TOKEN'))
+    client.run(os.getenv('LIVE_TOKEN'))

@@ -38,6 +38,13 @@ class TreeClient(discord.Client):
                 value = f'<:{emoji.name}:{emoji.id}>'
             self.emoji_dict[key] = value
     
+    def is_connected(self, guild):
+        return (
+            hasattr(guild, 'voice_client') and
+            guild.voice_client != None and
+            guild.voice_client.is_connected()
+        )
+    
     async def join(self, channel):
         # Join a voice channel or leave it if already joined.
         if hasattr(self, 'voice_client') and channel.guild.voice_client.is_connected():
@@ -57,6 +64,10 @@ class TreeClient(discord.Client):
             else:
                 logging.info(f'Successfully connected to \'{channel}\'.')
             return True
+    
+    async def on_voice_state_update(self, member, before, after):
+        if self.is_connected(member.guild) and len(member.guild.voice_client.channel.members) == 1:
+            await member.guild.voice_client.disconnect()
 
     async def on_ready(self):
         for guild in self.guilds:
