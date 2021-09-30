@@ -1,4 +1,5 @@
 DEFAULT_CHANNEL = 'moonlight'
+DEFAULT_VOLUME = 100
 DOWNLOAD_BY_DEFAULT = False
 EMOJI_REGEX = r'<a:.+?:\d+>|<:.+?:\d+>'
 FFMPEG_STREAM_OPTIONS = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'

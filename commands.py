@@ -112,8 +112,7 @@ def register_commands(client):
     )
     async def loop(ctx):
         reqs = {
-            REQUIRE_USER_IN_CALL: True,
-            REQUIRE_BOT_IN_CALL: True
+            REQUIRE_USER_IN_CALL: True
         }
         await client.music.reqs(
             ctx,
