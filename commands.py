@@ -101,7 +101,7 @@ def register_commands(client):
         reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
         await client.music.reqs(
             ctx,
-            lambda c=ctx: client.music.reset(c),
+            lambda g=ctx.guild, c=ctx: client.music.reset(g, c),
             **reqs
         )
     

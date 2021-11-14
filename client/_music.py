@@ -138,7 +138,7 @@ class MusicModule():
         return True # successfully added to queue
         
     def dequeue(self, error, guild, prev_video):
-        if error: logging.error(f'Error during play: {e}', exc_info=True)
+        if error: logging.error(f'Error during play: {error}', exc_info=True)
 
         # if we can't dequeue, we are either not connected or already playing something else
         if self.can_dequeue(guild):
@@ -220,12 +220,12 @@ class MusicModule():
         ctx.guild.voice_client.stop()
         return await ctx.send('✅ Skipped this song.')
 
-    async def reset(self, ctx):
-        self.settings_dict[ctx.guild].skip_next = True
-        self.settings_dict[ctx.guild].clear_queue()
-        ctx.guild.voice_client.stop()
+    async def reset(self, guild, ctx=None):
+        self.settings_dict[guild].skip_next = True
+        self.settings_dict[guild].clear_queue()
+        guild.voice_client.stop()
         self.cleanup()
-        return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
+        if ctx: return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
     
     async def toggle_looping(self, ctx):
         self.settings_dict[ctx.guild].toggle_looping()
