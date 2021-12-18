@@ -31,11 +31,21 @@ def link_valid(link):
 
 class MusicSettings():
     def __init__(self):
+        self.current = None
         self.downloading = DOWNLOAD_BY_DEFAULT
         self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.looping = False
         self.skip_next = False
         self.volume = DEFAULT_VOLUME
+    
+    def get_current(self):
+        return self.current
+    
+    def set_current(self, video):
+        self.current = video
+    
+    def get_queue_as_list(self):
+        return list(self.queue.queue)
     
     def clear_queue(self):
         self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
@@ -79,10 +89,10 @@ class MusicModule():
             video = video['entries'][0]
         return video['title']
     
-    def get_source(self, video, guild):
+    def get_source(self, video, download):
         if 'entries' in video:
             video = video['entries'][0]
-        if self.settings_dict[guild].downloading:
+        if download:
             return self.ytdl.prepare_filename(video)
         else:
             return video['formats'][0]['url']
@@ -151,21 +161,22 @@ class MusicModule():
                 except queue.Empty:
                     return False
                 else:
-                    prev_source = self.get_source(prev_video, guild)
+                    prev_source = self.get_source(prev_video, self.settings_dict[guild].downloading)
                     if not link_valid(prev_source):
                         with contextlib.suppress(FileNotFoundError):
                             os.remove(prev_source) # Clean up files that have finished playing
                     self.play(video, guild)
     
     def play(self, video, guild):
-        source = self.get_source(video, guild)
+        source = self.get_source(video, self.settings_dict[guild].downloading)
         logging.debug(f'[{guild}] Playing from source: {source}')
         
         if guild.voice_client.is_paused():
             return self.enqueue(guild, video)
         
+        logging.info(f'[{guild}] Playing {self.get_title(video)}...')
+        options = FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
         try:
-            options = FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
             stream = discord.PCMVolumeTransformer(
                     discord.FFmpegPCMAudio(
                         source,
@@ -176,10 +187,10 @@ class MusicModule():
             )
             guild.voice_client.play(stream,
                 after=lambda e, g=guild, v=video: self.dequeue(e, g, v))
-            logging.info(f'[{guild}] Playing video...')
+            self.settings_dict[guild].set_current(video)
             return False # not queued
         except discord.errors.ClientException:
-            logging.info(f'[{guild}] Queueing video...')
+            logging.info(f'[{guild}] Queueing {self.get_title(video)}...')
             return self.enqueue(guild, video) # try add to queue
     
     async def command_play(self, ctx, query):
@@ -226,6 +237,18 @@ class MusicModule():
         guild.voice_client.stop()
         self.cleanup()
         if ctx: return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
+    
+    async def view(self, ctx):
+        current = self.settings_dict[ctx.guild].get_current()
+        lst = self.settings_dict[ctx.guild].get_queue_as_list()
+        if len(lst) == 0 and not current:
+            return await ctx.send('✅ No music is playing right now, and the queue is empty.')
+        else:
+            embed = discord.Embed(title='View')
+            embed.add_field(name='Currently playing 🎶', value=self.get_title(current))
+            if len(lst) > 0:
+                embed.add_field(name='Coming up ⬇️', value='\n'.join([f'**{idx + 1}:** {self.get_title(video)}' for idx, video in enumerate(lst)]))
+            return await ctx.send(embed=embed)
     
     async def toggle_looping(self, ctx):
         self.settings_dict[ctx.guild].toggle_looping()

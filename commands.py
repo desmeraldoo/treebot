@@ -155,6 +155,19 @@ def register_commands(client):
         )
     
     @slash.slash(
+        name='view',
+        description='Displays the current queue',
+        guild_ids=command_guilds
+    )
+    async def view(ctx):
+        reqs = { REQUIRE_USER_IN_CALL: True }
+        await client.music.reqs(
+            ctx,
+            lambda c=ctx: client.music.view(c),
+            **reqs
+        )
+    
+    @slash.slash(
         name='test', 
         description='A nonfunctional command that serves as a template for the developer', 
         guild_ids=[debug_guild]
