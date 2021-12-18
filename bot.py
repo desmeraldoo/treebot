@@ -11,6 +11,9 @@ import client
 import commands
 import logger
 
+import pdb
+
+# TODO: Add a way to control volume*
 # TODO: Add a way to examine the queue
 # TODO: Add a way to play from file upload
 # TODO: Add a way to play a playlist
@@ -24,16 +27,16 @@ import logger
 # FIXME: Add failsafe for when Discord fails to render slash command and the user's message is sent as normal
 # FIXME: Test behavior when downloading extremely long files and/or set download limit
 # FIXME: Place logs in proper directory
-# FIXME: Add error handling if FFMPEG is not installed
 
 if __name__ == '__main__':
     if os.name == 'nt':
         os.system('chcp 65001') # set Windows terminal output format to use utf-8
     logger.init_logging()
     dotenv.load_dotenv()
+    debug = os.getenv('DEBUG') == 'True' # Casting as bool can lead to unexpected behavior.
     
     client = client.TreeClient()
     commands.register_commands(client)
-    
-    logging.info('Initialization complete')
-    client.run(os.getenv('LIVE_TOKEN'))
+    token = os.getenv('DEV_TOKEN') if debug else os.getenv('LIVE_TOKEN')
+    logging.info(f'{"[DEBUG MODE] " if debug else ""}Initialization complete!')
+    client.run(token)

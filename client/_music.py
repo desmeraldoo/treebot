@@ -15,8 +15,6 @@ from ._const import *
 
 import pdb
 
-def async_lambda(func): return func.__anext__()
-
 def link_valid(link):
     try:
         request = requests.head(link)
@@ -33,19 +31,14 @@ def link_valid(link):
 
 class MusicSettings():
     def __init__(self):
-        self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.downloading = DOWNLOAD_BY_DEFAULT
+        self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
         self.looping = False
         self.skip_next = False
+        self.volume = DEFAULT_VOLUME
     
     def clear_queue(self):
         self.queue = queue.Queue(maxsize=QUEUE_MAXSIZE)
-    
-    def toggle_download(self):
-        self.downloading = not self.downloading
-    
-    def toggle_looping(self):
-        self.looping = not self.looping
     
     def dequeue(self):
         return self.queue.get_nowait()
@@ -56,6 +49,12 @@ class MusicSettings():
     def queue_size(self):
         return self.queue.qsize()
 
+    def toggle_download(self):
+        self.downloading = not self.downloading
+    
+    def toggle_looping(self):
+        self.looping = not self.looping
+    
 class MusicModule():
     def __init__(self, parent):
         self.parent = parent
@@ -140,7 +139,7 @@ class MusicModule():
         return True # successfully added to queue
         
     def dequeue(self, error, guild, prev_video):
-        if error: logging.error(f'Error during play: {e}', exc_info=True)
+        if error: logging.error(f'Error during play: {error}', exc_info=True)
 
         # if we can't dequeue, we are either not connected or already playing something else
         if self.can_dequeue(guild):
@@ -165,10 +164,14 @@ class MusicModule():
         
         source = self.get_source(video, guild)
         try:
-            stream = discord.FFmpegPCMAudio(
-                source,
-                executable=self.ffmpeg,
-                before_options=FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
+            options = FFMPEG_STREAM_OPTIONS if not self.settings_dict[guild].downloading else None
+            stream = discord.PCMVolumeTransformer(
+                    discord.FFmpegPCMAudio(
+                        source,
+                        executable=self.ffmpeg,
+                        before_options=options
+                    ),
+                self.settings_dict[guild].volume * 0.01
             )
             guild.voice_client.play(stream,
                 after=lambda e, g=guild, v=video: self.dequeue(e, g, v))
@@ -221,12 +224,12 @@ class MusicModule():
         ctx.guild.voice_client.stop()
         return await ctx.send('✅ Skipped this song.')
 
-    async def reset(self, ctx):
-        self.settings_dict[ctx.guild].skip_next = True
-        self.settings_dict[ctx.guild].clear_queue()
-        ctx.guild.voice_client.stop()
+    async def reset(self, guild, ctx=None):
+        self.settings_dict[guild].skip_next = True
+        self.settings_dict[guild].clear_queue()
+        guild.voice_client.stop()
         self.cleanup()
-        return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
+        if ctx: return await ctx.send('✅ Stopped playing music. The queue has been cleared.')
     
     async def toggle_looping(self, ctx):
         self.settings_dict[ctx.guild].toggle_looping()
@@ -239,3 +242,14 @@ class MusicModule():
         if self.settings_dict[ctx.guild].downloading:
             return await ctx.send('✅ Enabled downloading. This may help with audio quality issues, but especially long files may take a while to play.')
         return await ctx.send('✅ Enabled streaming. This will reduce time to play streams, but there may be audio quality issues depending on the connection quality.')
+
+    async def set_volume(self, ctx, new_volume):
+        # Integer checking is done at the slash command level, so we don't need to do it here
+        if self.settings_dict[ctx.guild].volume == new_volume:
+            return await ctx.send(f'❌ The volume is already {new_volume}%. No settings were changed.')
+        elif new_volume <= 0 or new_volume > 200:
+            return await ctx.send(f'❌ The proposed volume ({new_volume}%) is invalid. Please choose a volume greater than 0 and less than or equal to 200.')
+        else:
+            old_volume = self.settings_dict[ctx.guild].volume
+            self.settings_dict[ctx.guild].volume = new_volume
+            return await ctx.send(f'✅ Changed volume from {old_volume}% to {new_volume}%. This change will take effect when the next song is played.')

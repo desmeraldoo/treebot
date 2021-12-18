@@ -68,6 +68,7 @@ class TreeClient(discord.Client):
     async def on_voice_state_update(self, member, before, after):
         if self.is_connected(member.guild) and len(member.guild.voice_client.channel.members) == 1:
             await member.guild.voice_client.disconnect()
+            if self.music: await self.music.reset(member.guild)
 
     async def on_ready(self):
         for guild in self.guilds:

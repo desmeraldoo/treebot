@@ -12,11 +12,15 @@ from client._const import *
 import pdb
 
 def register_commands(client):
-    slash = discord_slash.SlashCommand(client, sync_commands=True, debug_guild=750703990555279440, delete_from_unused_guilds=True)
-
+    debug = os.getenv('DEBUG') == 'True' # Casting as bool can lead to unexpected results.
+    debug_guild = int(os.getenv('DEV_GUILD'))
+    command_guilds = [debug_guild] if debug else None
+    slash = discord_slash.SlashCommand(client, sync_commands=True, delete_from_unused_guilds=True, debug_guild=debug_guild)
+    
     @slash.slash(
         name='play', 
-        description='Plays a song. If already playing or paused, adds the song to the queue',
+        description='Play a song. If already playing or paused, adds the song to the queue',
+        guild_ids=command_guilds,
         options=[
             manage_commands.create_option(
                 name='song',
@@ -39,7 +43,8 @@ def register_commands(client):
     
     @slash.slash(
         name='pause', 
-        description='Pauses the current song', 
+        description='Pause the current song',
+        guild_ids=command_guilds
     )
     async def pause(ctx):
         reqs = {
@@ -55,7 +60,8 @@ def register_commands(client):
     
     @slash.slash(
         name='resume', 
-        description='Resumes playing a song that was paused', 
+        description='Resume playing a song that was paused',
+        guild_ids=command_guilds
     )
     async def resume(ctx):
         reqs = {
@@ -71,7 +77,8 @@ def register_commands(client):
     
     @slash.slash(
         name='skip', 
-        description='Skips the currently playing song. If paused, plays the next song', 
+        description='Skips the currently playing song',
+        guild_ids=command_guilds
     )
     async def skip(ctx):
         reqs = {
@@ -87,24 +94,25 @@ def register_commands(client):
     
     @slash.slash(
         name='stop', 
-        description='Stops playing music and clears the queue', 
+        description=f'Stop playing music and clears the queue',
+        guild_ids=command_guilds
     )
     async def stop(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True, REQUIRE_BOT_IN_CALL: True }
         await client.music.reqs(
             ctx,
-            lambda c=ctx: client.music.reset(c),
+            lambda g=ctx.guild, c=ctx: client.music.reset(g, c),
             **reqs
         )
     
     @slash.slash(
         name='loop', 
-        description='Toggles looping the currently playing song. The queue will not advance while looping', 
+        description='Toggles looping the currently playing song. The queue will not advance',
+        guild_ids=command_guilds
     )
     async def loop(ctx):
         reqs = {
-            REQUIRE_USER_IN_CALL: True,
-            REQUIRE_BOT_IN_CALL: True
+            REQUIRE_USER_IN_CALL: True
         }
         await client.music.reqs(
             ctx,
@@ -114,7 +122,8 @@ def register_commands(client):
         
     @slash.slash(
         name='toggle_download', 
-        description='Toggles downloading of logs. Downloading is disabled by default', 
+        description='Toggle downloading of logs. Downloading is disabled by default',
+        guild_ids=command_guilds
     )
     async def toggle_download(ctx):
         reqs = { REQUIRE_USER_IN_CALL: True }
@@ -125,8 +134,30 @@ def register_commands(client):
         )
     
     @slash.slash(
-        name='test_global', 
+        name='set_volume', 
+        description='Sets the default volume on the bot. Applies to the next song played.',
+        guild_ids=command_guilds,
+        options=[
+            manage_commands.create_option(
+                name='volume',
+                description='The new volume, a number between 0 and 200. 100 is the default volume.',
+                option_type=4,
+                required=True
+            )
+        ]
+    )
+    async def set_volume(ctx, volume):
+        reqs = { REQUIRE_USER_IN_CALL: True }
+        await client.music.reqs(
+            ctx,
+            lambda c=ctx, v=volume: client.music.set_volume(c, v),
+            **reqs
+        )
+    
+    @slash.slash(
+        name='test', 
         description='A nonfunctional command that serves as a template for the developer', 
+        guild_ids=[debug_guild]
     )
     async def test(ctx):
         await ctx.send('Command is registered!')
